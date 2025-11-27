@@ -1,0 +1,16 @@
+[flotilla]
+key="key"
+rows = 64
+lwe_secret_dim = 1024
+
+[[flotilla.worker_refs]]
+node_id = 0
+address = "127.0.0.1:5000"
+
+[[flotilla.worker_refs]]
+node_id = 1
+address = "127.0.0.1:5001"
+
+[[flotilla.worker_refs]]
+node_id = 2
+address = "127.0.0.1:5002"

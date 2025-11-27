@@ -1,0 +1,9 @@
+[rpc]
+port = "5001"
+
+[worker]
+id = 1
+rows = 64
+cols = 64
+shard_start = 21 
+shard_stop = 42

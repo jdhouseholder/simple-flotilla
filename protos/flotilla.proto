@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package flotilla;
+
+service WorkerService {
+  rpc Hint(HintRequest) returns (HintResponse) {}
+  rpc Answer(AnswerRequest) returns (AnswerResponse) {}
+}
+
+message HintRequest {
+  bytes key = 1;
+}
+
+message HintResponse {
+  bytes share = 1;
+}
+
+message AnswerRequest {
+  bytes query = 1;
+}
+
+message AnswerResponse {
+  bytes share = 1;
+}
