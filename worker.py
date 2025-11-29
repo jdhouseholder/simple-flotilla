@@ -9,6 +9,9 @@ from load_cfg import load_cfg
 import serde
 from crypto import shake_rand_A_rows
 
+from simple_pirate import supa_fast
+
+
 class Worker:
     def __init__(self, cfg):
         self.rows = cfg["rows"]
@@ -28,14 +31,16 @@ class Worker:
             stop=self.shard_stop,
             lwe_secret_dim=self.lwe_secret_dim,
         )
-        hint = (self.db @ A).astype(np.uint32)
+        # hint = (self.db @ A).astype(np.uint32)
+        hint = supa_fast.matmul_u32_tiled(self.db, A)
         hint = serde.uint32_ndarray_to_bytes(hint)
         return hint
 
     def answer(self, query: bytes) -> bytes:
         query = serde.uint32_ndarray_from_bytes(query)
         query = np.reshape(query, (self.shard_stop - self.shard_start, 1))
-        out = self.db @ query
+        #out = self.db @ query
+        out = supa_fast.matmul_u32_tiled(self.db, query)
         return serde.uint32_ndarray_to_bytes(out)
 
 

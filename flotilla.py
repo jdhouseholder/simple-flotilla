@@ -46,7 +46,10 @@ class FlotillaClient:
             return self.offline_info
 
         responses = await asyncio.gather(
-            *[w.hint(self.key, self.rows, self.lwe_secret_dim) for w in self.worker_clients]
+            *[
+                w.hint(self.key, self.rows, self.lwe_secret_dim)
+                for w in self.worker_clients
+            ]
         )
         hint = np.sum(responses, axis=0, dtype=np.uint32)
 
@@ -85,7 +88,7 @@ async def main():
     np.random.seed(0)
     db = np.random.randint(0, 32, (64, 64), dtype=np.uint32)
 
-    A = shake_rand_A_full(key, 64, 1024)
+    A = shake_rand_A_full(key=key, cols=64, lwe_secret_dim=1024)
     want = (db @ A).astype(np.uint32)
 
     print("get_offline_info")
