@@ -7,9 +7,7 @@ service WorkerService {
   rpc Answer(AnswerRequest) returns (AnswerResponse) {}
 }
 
-message HintRequest {
-  bytes key = 1;
-}
+message HintRequest {}
 
 message HintResponse {
   bytes share = 1;

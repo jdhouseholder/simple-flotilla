@@ -8,7 +8,7 @@ def shake_rand_A_rows(
 ) -> np.ndarray:
     out = np.empty((stop - start, lwe_secret_dim), dtype=np.uint32)
     for j in range(stop - start):
-        xof = hashlib.shake_256(key + b"A" + struct.pack("<I", start + j))
+        xof = hashlib.shake_256(key + b'\x13\x37' + struct.pack("<I", start + j))
         buf = xof.digest(4 * lwe_secret_dim)
         col = np.frombuffer(buf, dtype="<u4")
         out[j, :] = col

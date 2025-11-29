@@ -3,7 +3,9 @@ port = "5002"
 
 [worker]
 id = 2
-rows = 64
-cols = 64
-shard_start = 42
-shard_stop = 64
+key = "key"
+shard_start = 20
+shard_stop = 32
+
+entries = 1024
+bits_per_entry = 8

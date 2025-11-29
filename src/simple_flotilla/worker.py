@@ -7,40 +7,55 @@ import flotilla_pb2, flotilla_pb2_grpc
 
 from load_cfg import load_cfg
 import serde
-from crypto import shake_rand_A_rows
 
-from simple_pirate import supa_fast
+from simple_pirate import supa_fast, parameters, lib, simplepir
+from simple_pirate.demo_utils import random_db
 
 
 class Worker:
     def __init__(self, cfg):
-        self.rows = cfg["rows"]
-        self.cols = cfg["cols"]
         self.shard_start = cfg["shard_start"]
         self.shard_stop = cfg["shard_stop"]
-        self.lwe_secret_dim = 1024
+
+        # Every node will solve for the same parameters for demo purposes
+        self.parameters = parameters.solve_system_parameters(
+            entries=cfg["entries"],
+            bits_per_entry=cfg["bits_per_entry"],
+        )
 
         np.random.seed(0)
-        db = np.random.randint(0, 32, (self.rows, self.cols), dtype=np.uint32)
+        db = random_db(cfg["entries"], cfg["bits_per_entry"])
+        db = simplepir.process_database(self.parameters, db)
         self.db = db[:, self.shard_start : self.shard_stop]
-
-    def hint(self, key: bytes) -> bytes:
-        A = shake_rand_A_rows(
-            key,
+        self.db -= self.parameters.plaintext_modulus // 2
+        A = lib.shake_rand_rows(
+            cfg["key"].encode("utf8"),
             start=self.shard_start,
             stop=self.shard_stop,
-            lwe_secret_dim=self.lwe_secret_dim,
+            lwe_secret_dim=self.parameters.lwe_secret_dimension,
         )
-        # hint = (self.db @ A).astype(np.uint32)
-        hint = supa_fast.matmul_u32_tiled(self.db, A)
-        hint = serde.uint32_ndarray_to_bytes(hint)
+        self._hint = supa_fast.matmul_u32_tiled(self.db, A)
+        self.db += self.parameters.plaintext_modulus // 2
+        self.db = lib.squish(
+            self.db,
+            basis=self.parameters.compression_basis,
+            delta=self.parameters.compression_squishing,
+        )
+
+    def hint(self) -> bytes:
+        hint = serde.uint32_ndarray_to_bytes(self._hint)
         return hint
 
     def answer(self, query: bytes) -> bytes:
         query = serde.uint32_ndarray_from_bytes(query)
         query = np.reshape(query, (self.shard_stop - self.shard_start, 1))
         #out = self.db @ query
-        out = supa_fast.matmul_u32_tiled(self.db, query)
+        out = supa_fast.matvec_packed_fused(
+            a=self.db,
+            b=query,
+            basis=self.parameters.compression_basis,
+            compression=self.parameters.compression_squishing,
+        ).astype(np.uint32)
         return serde.uint32_ndarray_to_bytes(out)
 
 
@@ -50,7 +65,7 @@ class WorkerService(flotilla_pb2_grpc.WorkerService):
         self.w = w
 
     def Hint(self, req, context):
-        share = self.w.hint(req.key)
+        share = self.w.hint()
         return flotilla_pb2.HintResponse(share=share)
 
     def Answer(self, req, context):

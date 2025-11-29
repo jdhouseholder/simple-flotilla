@@ -9,8 +9,11 @@ import grpc
 import flotilla_pb2, flotilla_pb2_grpc
 
 import serde
-from crypto import shake_rand_A_full
 from load_cfg import load_cfg
+
+from simple_pirate.demo_utils import random_db
+from simple_pirate.parameters import solve_system_parameters
+from simple_pirate import simplepir
 
 
 class WorkerClient:
@@ -19,8 +22,8 @@ class WorkerClient:
         self.channel = grpc.aio.insecure_channel(self.worker_ref["address"])
         self.stub = flotilla_pb2_grpc.WorkerServiceStub(self.channel)
 
-    async def hint(self, key: bytes, rows: int, lwe_secret_dim: int) -> np.ndarray:
-        resp = await self.stub.Hint(flotilla_pb2.HintRequest(key=key))
+    async def hint(self, rows: int, lwe_secret_dim: int) -> np.ndarray:
+        resp = await self.stub.Hint(flotilla_pb2.HintRequest())
         a = serde.uint32_ndarray_from_bytes(resp.share)
         return np.reshape(a, (rows, lwe_secret_dim))
 
@@ -33,10 +36,13 @@ class WorkerClient:
 
 class FlotillaClient:
     def __init__(self, cfg):
+        self.parameters = solve_system_parameters(
+            entries=cfg["entries"],
+            bits_per_entry=cfg["bits_per_entry"],
+        )
+
         self.worker_refs = cfg["worker_refs"]
         self.key = cfg["key"].encode("utf8")
-        self.rows = cfg["rows"]
-        self.lwe_secret_dim = cfg["lwe_secret_dim"]
         self.worker_clients = [WorkerClient(w) for w in self.worker_refs]
 
         self.offline_info = None
@@ -47,7 +53,7 @@ class FlotillaClient:
 
         responses = await asyncio.gather(
             *[
-                w.hint(self.key, self.rows, self.lwe_secret_dim)
+                w.hint(self.parameters.db_rows, self.parameters.lwe_secret_dimension)
                 for w in self.worker_clients
             ]
         )
@@ -58,6 +64,17 @@ class FlotillaClient:
         return self.offline_info
 
     async def answer(self, query: np.ndarray):
+        futs = []
+        for i, w in enumerate(self.worker_clients):
+            shard_start = w.worker_ref["shard_start"]
+            shard_stop = w.worker_ref["shard_stop"]
+            q = query[shard_start:shard_stop]
+            futs.append(w.answer(q))
+        responses = await asyncio.gather(*futs)
+        resp = np.sum(responses, axis=0)
+        return resp
+
+    async def answer_old(self, query: np.ndarray):
         futs = []
         n_workers = len(self.worker_clients)
         chunk_size = int(math.floor(len(query) / n_workers))
@@ -85,23 +102,31 @@ async def main():
     key = flotilla_cfg["key"].encode("utf8")
     c = FlotillaClient(flotilla_cfg)
 
+    parameters = solve_system_parameters(
+        entries=flotilla_cfg["entries"],
+        bits_per_entry=flotilla_cfg["bits_per_entry"],
+    )
+
     np.random.seed(0)
-    db = np.random.randint(0, 32, (64, 64), dtype=np.uint32)
+    db = random_db(flotilla_cfg["entries"], flotilla_cfg["bits_per_entry"])
 
-    A = shake_rand_A_full(key=key, cols=64, lwe_secret_dim=1024)
-    want = (db @ A).astype(np.uint32)
-
-    print("get_offline_info")
+    print("Getting offline info")
     o = await c.get_offline_info()
     hint = o["hint"]
-    assert np.all(hint == want)
+    print("Got offline info")
 
-    print("answer")
-    query = np.random.randint(0, 5, (64, 1), dtype=np.uint32)
-    a = await c.answer(query)
-    want = db @ query
-    assert np.all(a == want)
+    simplepirClient = simplepir.SimplePirClient(parameters, simplepir.OfflineData(
+        A_key=key,
+        hint=hint,
+    ))
 
+    index = 1020
+    query_state, query = simplepirClient.query(index)
+    print("Getting answer")
+    answer = await c.answer(query)
+    print("Got answer")
+    got = simplepirClient.recover(query_state, answer)
+    print(got, db[index])
 
 if __name__ == "__main__":
     asyncio.run(main())
