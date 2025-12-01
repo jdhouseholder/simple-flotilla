@@ -6,10 +6,11 @@ import asyncio
 import numpy as np
 import grpc
 
-import flotilla_pb2, flotilla_pb2_grpc
+from . import flotilla_pb2
+from . import flotilla_pb2_grpc
 
-import serde
-from load_cfg import load_cfg
+from . import serde
+from .load_cfg import load_cfg
 
 from simple_pirate.demo_utils import random_db
 from simple_pirate.parameters import solve_system_parameters
@@ -19,7 +20,13 @@ from simple_pirate import simplepir
 class WorkerClient:
     def __init__(self, worker_ref):
         self.worker_ref = worker_ref
-        self.channel = grpc.aio.insecure_channel(self.worker_ref["address"])
+        self.channel = grpc.aio.insecure_channel(
+            self.worker_ref["address"],
+            options=[
+                ('grpc.max_send_message_length', -1),
+                ('grpc.max_receive_message_length', -1),
+            ],
+        )
         self.stub = flotilla_pb2_grpc.WorkerServiceStub(self.channel)
 
     async def hint(self, rows: int, lwe_secret_dim: int) -> np.ndarray:

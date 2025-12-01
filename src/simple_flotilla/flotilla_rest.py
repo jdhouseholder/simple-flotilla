@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from flotilla import FlotillaClient
+from .flotilla import FlotillaClient
 
 
 class OutOfBandResponse(BaseModel):

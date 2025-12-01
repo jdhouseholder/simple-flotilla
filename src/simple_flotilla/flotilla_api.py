@@ -4,8 +4,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from load_cfg import load_cfg
-from flotilla_rest import (
+from .load_cfg import load_cfg
+from .flotilla_rest import (
     FlotillaRestServer,
     OutOfBandResponse,
     OfflineInfo,

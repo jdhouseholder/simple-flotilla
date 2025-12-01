@@ -5,7 +5,9 @@ port = "5000"
 id = 0
 key = "key"
 shard_start = 0
-shard_stop = 10
+shard_stop = 1111
 
-entries = 1024
-bits_per_entry = 8
+entries = 30000
+bits_per_entry = 3520
+
+data_path = "/home/j/privacy/mpt-pir-py/sharded-demodata/accounts.bin"

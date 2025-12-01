@@ -1,22 +1,22 @@
 [flotilla]
 key="key"
-entries = 1024
-bits_per_entry = 8
+entries = 30000
+bits_per_entry = 3520
 
 [[flotilla.worker_refs]]
 node_id = 0
 address = "127.0.0.1:5000"
 shard_start = 0
-shard_stop = 10
+shard_stop = 1111
 
 [[flotilla.worker_refs]]
 node_id = 1
 address = "127.0.0.1:5001"
-shard_start = 10
-shard_stop = 20
+shard_start = 1111
+shard_stop = 2222
 
 [[flotilla.worker_refs]]
 node_id = 2
 address = "127.0.0.1:5002"
-shard_start = 20
-shard_stop = 32
+shard_start = 2222
+shard_stop = 3334

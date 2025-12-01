@@ -1,0 +1,13 @@
+[rpc]
+port = "6000"
+
+[worker]
+id = 0
+key = "key"
+shard_start = 0
+shard_stop = -1
+
+entries = 30000
+bits_per_entry = 3520
+
+data_path = "/home/j/privacy/mpt-pir-py/sharded-demodata/treeTop.bin"

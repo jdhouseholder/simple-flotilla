@@ -3,13 +3,11 @@ from concurrent import futures
 import grpc
 import numpy as np
 
-import flotilla_pb2, flotilla_pb2_grpc
-
-from load_cfg import load_cfg
-import serde
+from . import flotilla_pb2, flotilla_pb2_grpc, serde
+from .load_cfg import load_cfg
 
 from simple_pirate import supa_fast, parameters, lib, simplepir
-from simple_pirate.demo_utils import random_db
+from simple_pirate.serde import bytes_to_uint64_list_no_pad, mmap_to_uint64
 
 
 class Worker:
@@ -23,10 +21,16 @@ class Worker:
             bits_per_entry=cfg["bits_per_entry"],
         )
 
-        np.random.seed(0)
-        db = random_db(cfg["entries"], cfg["bits_per_entry"])
-        db = simplepir.process_database(self.parameters, db)
-        self.db = db[:, self.shard_start : self.shard_stop]
+        if False:
+            np.random.seed(0)
+            db = random_db(cfg["entries"], cfg["bits_per_entry"])
+        else:
+            db = mmap_to_uint64(cfg["data_path"])
+
+        # TODO: support sharded files.
+        self.db = simplepir.process_database(self.parameters, db)
+        self.db = self.db[:, self.shard_start : self.shard_stop]
+
         self.db -= self.parameters.plaintext_modulus // 2
         A = lib.shake_rand_rows(
             cfg["key"].encode("utf8"),
